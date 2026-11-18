@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Flight Deck — Lock Screen Wallpaper</title>
+  <style>
+    :root {
+      --bg-top: #070d19;
+      --bg-mid: #0d172a;
+      --bg-bottom: #181a38;
+      --text-main: #f4f6fb;
+      --text-muted: rgba(244, 246, 251, 0.56);
+      --text-subtle: rgba(244, 246, 251, 0.36);
+      --accent: #5eead4;
+      --accent-glow: rgba(94, 234, 212, 0.38);
+      --accent-soft: rgba(94, 234, 212, 0.14);
+      --surface: rgba(255, 255, 255, 0.055);
+      --surface-border: rgba(255, 255, 255, 0.11);
+      --surface-hover: rgba(255, 255, 255, 0.1);
+    }
+
+    body.final-approach {
+      --accent: #fbbf24;
+      --accent-glow: rgba(251, 191, 36, 0.42);
+      --accent-soft: rgba(251, 191, 36, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background-color: #04070e;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Desktop centering wrapper */
+    .viewport-wrapper {
+      height: 100dvh;
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Phone canvas (9:19.5 aspect ratio on desktop, full viewport on mobile) */
+    .lockscreen-canvas {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(120% 60% at 50% 42%, var(--accent-soft) 0%, transparent 65%),
+        linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 52%, var(--bg-bottom) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding-left: max(22px, env(safe-area-inset-left));
+      padding-right: max(22px, env(safe-area-inset-right));
+      padding-bottom: max(18px, env(safe-area-inset-bottom));
+      overflow: hidden;
+      transition: background 0.8s ease;
+    }
+
+    @media (min-width: 520px) {
+      .lockscreen-canvas {
+        height: min(94dvh, 880px);
+        width: auto;
+        aspect-ratio: 9 / 19.5;
+        border-radius: 44px;
+        box-shadow:
+          0 28px 80px rgba(0, 0, 0, 0.75),
+          0 0 0 1px rgba(255, 255, 255, 0.12);
+      }
+    }
+
+    /* Subtle instrument grid texture */
+    .lockscreen-canvas::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      mask-image: linear-gradient(180deg, transparent 28%, rgba(0, 0, 0, 0.55) 55%, transparent 92%);
+      -webkit-mask-image: linear-gradient(180deg, transparent 28%, rgba(0, 0, 0, 0.55) 55%, transparent 92%);
+      pointer-events: none;
+    }
+
+    /* 1. Top 34% completely empty for phone's native clock */
+    .clock-spacer {
+      height: 34%;
+      min-height: 34%;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    /* Main Flight Deck Content (bottom 66%) */
+    .flight-deck {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 0;
+    }
+
+    /* 2 & 3. Countdown Block */
+    .telemetry-block {
+      text-align: center;
+      padding-top: 2px;
+    }
+
+    .status-label {
+      font-size: clamp(10px, 2.7vw, 11.5px);
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+      transition: color 0.5s ease;
+    }
+
+    .countdown-value {
+      font-size: clamp(36px, 10.2vw, 46px);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-main);
+    }
+
+    .countdown-sub {
+      font-size: clamp(13px, 3.5vw, 14.5px);
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* 4. Inline SVG Flight Path */
+    .flight-path-wrap {
+      width: 100%;
+      padding: 4px 0;
+    }
+
+    .flight-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+
+    .wp-day {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      fill: var(--text-muted);
+      transition: fill 0.4s ease;
+    }
+
+    .wp-role {
+      font-size: 9.5px;
+      font-weight: 500;
+      fill: var(--text-subtle);
+      transition: fill 0.4s ease;
+    }
+
+    .wp-group.passed .wp-day {
+      fill: var(--text-main);
+    }
+
+    .wp-group.passed .wp-role {
+      fill: var(--text-muted);
+    }
+
+    .wp-group.active .wp-day {
+      fill: var(--accent);
+    }
+
+    .wp-group.active .wp-role {
+      fill: var(--text-main);
+    }
+
+    .wp-dot {
+      fill: #0f192d;
+      stroke: rgba(255, 255, 255, 0.28);
+      stroke-width: 2;
+      transition: all 0.4s ease;
+    }
+
+    .wp-group.passed .wp-dot {
+      fill: var(--accent);
+      stroke: var(--accent);
+    }
+
+    .wp-group.active .wp-dot {
+      fill: var(--accent);
+      stroke: #ffffff;
+      stroke-width: 2;
+    }
+
+    .wp-halo {
+      fill: var(--accent);
+      opacity: 0;
+      transform-origin: center;
+      transition: opacity 0.4s ease;
+    }
+
+    .wp-group.active .wp-halo {
+      opacity: 0.28;
+      animation: pulseHalo 2.6s ease-in-out infinite;
+    }
+
+    @keyframes pulseHalo {
+      0%, 100% { r: 9; opacity: 0.22; }
+      50% { r: 13.5; opacity: 0.42; }
+    }
+
+    /* 5. This week's one big thing */
+    .objective-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      padding: 11px 14px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .objective-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .objective-label::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .objective-input {
+      font-size: clamp(14px, 3.8vw, 15.5px);
+      font-weight: 500;
+      color: var(--text-main);
+      line-height: 1.35;
+      outline: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border-radius: 4px;
+    }
+
+    .objective-input:focus {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
+      color: #ffffff;
+    }
+
+    /* 6. Command Bar & Quick-Action Chips */
+    .tower-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .command-bar-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid var(--surface-border);
+      border-radius: 999px;
+      padding: 5px 6px 5px 15px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .command-bar-wrap:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .command-input {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13.5px;
+      line-height: 1.3;
+    }
+
+    .command-input::placeholder {
+      color: var(--text-subtle);
+    }
+
+    .send-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #06101d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-left: 8px;
+      transition: transform 0.15s ease, opacity 0.2s ease;
+    }
+
+    .send-btn:active {
+      transform: scale(0.92);
+    }
+
+    .tower-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      min-height: 15px;
+    }
+
+    .unlock-hint {
+      font-size: 10.5px;
+      color: var(--text-subtle);
+      letter-spacing: 0.02em;
+    }
+
+    .toast-feedback {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      opacity: 0;
+      transform: translateY(2px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      pointer-events: none;
+    }
+
+    .toast-feedback.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .chips-row {
+      display: flex;
+      gap: 6px;
+      justify-content: space-between;
+    }
+
+    .chip-btn {
+      flex: 1;
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: clamp(11px, 3vw, 12px);
+      font-weight: 500;
+      padding: 8px 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+    }
+
+    .chip-btn:hover {
+      background: var(--surface-hover);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .chip-btn:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body>
+  <div class="viewport-wrapper">
+    <main class="lockscreen-canvas" aria-label="Flight Deck Lock Screen">
+      <!-- 1. Top 34% left completely empty for the phone's real clock -->
+      <div class="clock-spacer" aria-hidden="true"></div>
+
+      <div class="flight-deck">
+        <!-- 2 & 3. Live Countdown -->
+        <section class="telemetry-block" aria-live="polite">
+          <div class="status-label" id="statusLabel">LANDING FRIDAY 5:00 PM</div>
+          <div class="countdown-value" id="countdownValue">2d 06h 14m</div>
+          <div class="countdown-sub" id="countdownSub">until landing</div>
+        </section>
+
+        <!-- 4. Inline SVG Flight Path -->
+        <section class="flight-path-wrap" aria-label="Weekly flight progress">
+          <svg class="flight-svg" viewBox="0 0 360 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="flightActiveGrad" x1="28" y1="0" x2="332" y2="0" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.45" />
+                <stop offset="100%" stop-color="var(--accent)" stop-opacity="1" />
+              </linearGradient>
+              <filter id="planeGlow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Base track curve (Mon 9 AM to Fri 5 PM) -->
+            <path
+              id="baseTrack"
+              d="M 28 60 Q 180 12 332 60"
+              stroke="rgba(255,255,255,0.16)"
+              stroke-width="2"
+              stroke-dasharray="3 4"
+              stroke-linecap="round"
+            />
+
+            <!-- Progress curve -->
+            <path
+              id="progressTrack"
+              d="M 28 60 Q 180 12 332 60"
+              stroke="url(#flightActiveGrad)"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            />
+
+            <!-- Waypoints: t = 0 (Mon 9am), 0.2308 (Tue 9am), 0.4615 (Wed 9am), 0.6923 (Thu 9am), 1.0 (Fri 5pm) -->
+            <g class="wp-group" id="wp-0">
+              <circle class="wp-halo" cx="28" cy="60" r="9" />
+              <circle class="wp-dot" cx="28" cy="60" r="4.5" />
+              <text class="wp-day" x="28" y="83" text-anchor="middle">Mon</text>
+              <text class="wp-role" x="28" y="96" text-anchor="middle">Plan</text>
+            </g>
+
+            <g class="wp-group" id="wp-1">
+              <circle class="wp-halo" cx="98.2" cy="43.1" r="9" />
+              <circle class="wp-dot" cx="98.2" cy="43.1" r="4.5" />
+              <text class="wp-day" x="98.2" y="83" text-anchor="middle">Tue</text>
+              <text class="wp-role" x="98.2" y="96" text-anchor="middle">Deep work</text>
+            </g>
+
+            <g class="wp-group" id="wp-2">
+              <circle class="wp-halo" cx="168.3" cy="36.2" r="9" />
+              <circle class="wp-dot" cx="168.3" cy="36.2" r="4.5" />
+              <text class="wp-day" x="168.3" y="83" text-anchor="middle">Wed</text>
+              <text class="wp-role" x="168.3" y="96" text-anchor="middle">Midpoint</text>
+            </g>
+
+            <g class="wp-group" id="wp-3">
+              <circle class="wp-halo" cx="238.5" cy="40.3" r="9" />
+              <circle class="wp-dot" cx="238.5" cy="40.3" r="4.5" />
+              <text class="wp-day" x="238.5" y="83" text-anchor="middle">Thu</text>
+              <text class="wp-role" x="238.5" y="96" text-anchor="middle">Wrap up</text>
+            </g>
+
+            <g class="wp-group" id="wp-4">
+              <circle class="wp-halo" cx="332" cy="60" r="9" />
+              <circle class="wp-dot" cx="332" cy="60" r="4.5" />
+              <text class="wp-day" x="332" y="83" text-anchor="middle">Fri</text>
+              <text class="wp-role" x="332" y="96" text-anchor="middle">Ship</text>
+            </g>
+
+            <!-- Aircraft icon positioned dynamically along the quadratic curve -->
+            <g id="planeMarker" transform="translate(28, 60)" filter="url(#planeGlow)">
+              <circle cx="0" cy="0" r="11" fill="#0b1324" stroke="var(--accent)" stroke-width="1.5" />
+              <path
+                d="M 5.5 0 L -3.5 -4.2 L -1.8 0 L -3.5 4.2 Z"
+                fill="var(--accent)"
+              />
+            </g>
+          </svg>
+        </section>
+
+        <!-- 5. This week's one big thing -->
+        <section class="objective-card">
+          <div class="objective-label">This week's one big thing</div>
+          <div
+            class="objective-input"
+            id="bigThingInput"
+            contenteditable="true"
+            role="textbox"
+            aria-label="This week's one big thing"
+            spellcheck="false"
+          >Ship Q4 product launch brief &amp; align stakeholders</div>
+        </section>
+
+        <!-- 6. Command Bar & Time-of-Day Chips -->
+        <section class="tower-section" aria-label="Tower command bar">
+          <form class="command-bar-wrap" id="commandForm" autocomplete="off">
+            <input
+              type="text"
+              class="command-input"
+              id="commandInput"
+              placeholder="Ask the tower: draft, ask, or automate…"
+              aria-label="Ask the tower"
+            />
+            <button type="submit" class="send-btn" aria-label="Send command">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+            </button>
+          </form>
+
+          <div class="tower-meta">
+            <span class="unlock-hint">Unlock to run</span>
+            <span class="toast-feedback" id="toastFeedback" role="status">Copied. Paste in Gemini</span>
+          </div>
+
+          <div class="chips-row" id="chipsRow">
+            <button type="button" class="chip-btn">Prep meeting</button>
+            <button type="button" class="chip-btn">Quick question</button>
+            <button type="button" class="chip-btn">Draft reply</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = "flight_deck_one_big_thing_v1";
+      const DEFAULT_OBJECTIVE = "Ship Q4 product launch brief & align stakeholders";
+
+      const statusLabelEl = document.getElementById("statusLabel");
+      const countdownValueEl = document.getElementById("countdownValue");
+      const countdownSubEl = document.getElementById("countdownSub");
+      const progressTrackEl = document.getElementById("progressTrack");
+      const planeMarkerEl = document.getElementById("planeMarker");
+      const bigThingEl = document.getElementById("bigThingInput");
+      const commandFormEl = document.getElementById("commandForm");
+      const commandInputEl = document.getElementById("commandInput");
+      const chipsRowEl = document.getElementById("chipsRow");
+      const toastFeedbackEl = document.getElementById("toastFeedback");
+
+      // Quadratic Bezier control points matching SVG: M 28 60 Q 180 12 332 60
+      const P0 = { x: 28, y: 60 };
+      const P1 = { x: 180, y: 12 };
+      const P2 = { x: 332, y: 60 };
+
+      // Waypoint fractional positions along Mon 9:00 AM -> Fri 5:00 PM (104 hours total)
+      // Mon 9am = 0h (0), Tue 9am = 24h (0.2308), Wed 9am = 48h (0.4615), Thu 9am = 72h (0.6923), Fri 5pm = 104h (1.0)
+      const WAYPOINT_FRACTIONS = [0, 24 / 104, 48 / 104, 72 / 104, 1];
+
+      function getPointOnCurve(t) {
+        const clamped = Math.max(0, Math.min(1, t));
+        const mt = 1 - clamped;
+        const x = mt * mt * P0.x + 2 * mt * clamped * P1.x + clamped * clamped * P2.x;
+        const y = mt * mt * P0.y + 2 * mt * clamped * P1.y + clamped * clamped * P2.y;
+        const dx = 2 * mt * (P1.x - P0.x) + 2 * clamped * (P2.x - P1.x);
+        const dy = 2 * mt * (P1.y - P0.y) + 2 * clamped * (P2.y - P1.y);
+        const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+        return { x, y, angleDeg };
+      }
+
+      // Position waypoints accurately on the curve
+      WAYPOINT_FRACTIONS.forEach((t, idx) => {
+        const pt = getPointOnCurve(t);
+        const wpGroup = document.getElementById(`wp-${idx}`);
+        if (wpGroup) {
+          const halo = wpGroup.querySelector(".wp-halo");
+          const dot = wpGroup.querySelector(".wp-dot");
+          halo.setAttribute("cx", pt.x.toFixed(1));
+          halo.setAttribute("cy", pt.y.toFixed(1));
+          dot.setAttribute("cx", pt.x.toFixed(1));
+          dot.setAttribute("cy", pt.y.toFixed(1));
+        }
+      });
+
+      const totalCurveLength = progressTrackEl.getTotalLength();
+      progressTrackEl.style.strokeDasharray = `${totalCurveLength}`;
+
+      function formatDuration(ms) {
+        const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+        const days = Math.floor(totalMinutes / (60 * 24));
+        const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+        const minutes = totalMinutes % 60;
+        const hh = String(hours).padStart(2, "0");
+        const mm = String(minutes).padStart(2, "0");
+        return `${days}d ${hh}h ${mm}m`;
+      }
+
+      function getWeekBoundaries(now) {
+        // Compute Monday 9:00 AM and Friday 5:00 PM of the current week
+        const day = now.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+
+        const mondayTakeoff = new Date(now);
+        mondayTakeoff.setDate(now.getDate() + diffToMonday);
+        mondayTakeoff.setHours(9, 0, 0, 0);
+
+        const fridayLanding = new Date(mondayTakeoff);
+        fridayLanding.setDate(mondayTakeoff.getDate() + 4);
+        fridayLanding.setHours(17, 0, 0, 0);
+
+        const nextMondayTakeoff = new Date(mondayTakeoff);
+        nextMondayTakeoff.setDate(mondayTakeoff.getDate() + 7);
+        nextMondayTakeoff.setHours(9, 0, 0, 0);
+
+        return { mondayTakeoff, fridayLanding, nextMondayTakeoff };
+      }
+
+      let currentChipBucket = "";
+
+      function updateQuickChips(now) {
+        const hour = now.getHours();
+        let bucket = "mid";
+        let labels = ["Prep meeting", "Quick question", "Draft reply"];
+
+        if (hour < 11) {
+          bucket = "morning";
+          labels = ["Plan my day", "Summarize inbox", "Block focus time"];
+        } else if (hour >= 15) {
+          bucket = "afternoon";
+          labels = ["Draft follow-ups", "Wrap-up note", "Plan tomorrow"];
+        }
+
+        if (bucket === currentChipBucket) return;
+        currentChipBucket = bucket;
+
+        chipsRowEl.innerHTML = "";
+        labels.forEach((label) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "chip-btn";
+          btn.textContent = label;
+          btn.addEventListener("click", () => {
+            commandInputEl.value = label;
+            commandInputEl.focus();
+          });
+          chipsRowEl.appendChild(btn);
+        });
+      }
+
+      function updateFlightDeck() {
+        const now = new Date();
+        const { mondayTakeoff, fridayLanding, nextMondayTakeoff } = getWeekBoundaries(now);
+
+        const isWeekend = now >= fridayLanding;
+        const isPreTakeoffMonday = now < mondayTakeoff;
+
+        let progress = 0;
+        let targetDate = fridayLanding;
+        let isFinalApproach = false;
+
+        if (isWeekend) {
+          // Friday 5 PM through Sunday
+          statusLabelEl.textContent = "NEXT TAKEOFF MONDAY 9:00 AM";
+          countdownSubEl.textContent = "until takeoff. Recharge.";
+          targetDate = nextMondayTakeoff;
+          progress = 1;
+        } else if (isPreTakeoffMonday) {
+          // Monday 12:00 AM to 8:59 AM before takeoff
+          statusLabelEl.textContent = "LANDING FRIDAY 5:00 PM";
+          countdownSubEl.textContent = "until landing";
+          targetDate = fridayLanding;
+          progress = 0;
+        } else {
+          // Active flight: Monday 9:00 AM to Friday 5:00 PM
+          statusLabelEl.textContent = "LANDING FRIDAY 5:00 PM";
+          countdownSubEl.textContent = "until landing";
+          targetDate = fridayLanding;
+
+          const totalFlightMs = fridayLanding.getTime() - mondayTakeoff.getTime();
+          const elapsedMs = now.getTime() - mondayTakeoff.getTime();
+          progress = Math.max(0, Math.min(1, elapsedMs / totalFlightMs));
+
+          const remainingMs = fridayLanding.getTime() - now.getTime();
+          if (remainingMs > 0 && remainingMs <= 4 * 60 * 60 * 1000) {
+            isFinalApproach = true;
+          }
+        }
+
+        document.body.classList.toggle("final-approach", isFinalApproach);
+
+        const remaining = targetDate.getTime() - now.getTime();
+        countdownValueEl.textContent = formatDuration(remaining);
+
+        // Update SVG progress stroke & plane position
+        const dashOffset = totalCurveLength * (1 - progress);
+        progressTrackEl.style.strokeDashoffset = `${dashOffset}`;
+
+        const planePos = getPointOnCurve(progress);
+        planeMarkerEl.setAttribute(
+          "transform",
+          `translate(${planePos.x.toFixed(2)}, ${planePos.y.toFixed(2)}) rotate(${planePos.angleDeg.toFixed(2)})`
+        );
+
+        // Update waypoint states (Mon=0 ... Fri=4)
+        const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+        const activeIndex = isWeekend ? 4 : Math.max(0, Math.min(4, dayOfWeek - 1));
+
+        for (let i = 0; i < 5; i++) {
+          const wp = document.getElementById(`wp-${i}`);
+          if (!wp) continue;
+          wp.classList.remove("passed", "active");
+          if (isWeekend) {
+            wp.classList.add("passed");
+            if (i === 4) wp.classList.add("active");
+          } else if (i < activeIndex) {
+            wp.classList.add("passed");
+          } else if (i === activeIndex) {
+            wp.classList.add("active");
+          }
+        }
+
+        updateQuickChips(now);
+      }
+
+      // 5. Editable "One big thing" with safe localStorage persistence
+      function loadObjective() {
+        try {
+          const saved = window.localStorage.getItem(STORAGE_KEY);
+          if (saved && saved.trim().length > 0) {
+            bigThingEl.textContent = saved;
+          } else {
+            bigThingEl.textContent = DEFAULT_OBJECTIVE;
+          }
+        } catch (err) {
+          bigThingEl.textContent = DEFAULT_OBJECTIVE;
+        }
+      }
+
+      function saveObjective() {
+        const text = bigThingEl.textContent.replace(/\s+/g, " ").trim();
+        try {
+          if (text) {
+            window.localStorage.setItem(STORAGE_KEY, text);
+          } else {
+            window.localStorage.removeItem(STORAGE_KEY);
+          }
+        } catch (err) {
+          // Ignore storage errors gracefully
+        }
+      }
+
+      bigThingEl.addEventListener("input", saveObjective);
+      bigThingEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          bigThingEl.blur();
+        }
+      });
+      bigThingEl.addEventListener("blur", () => {
+        if (!bigThingEl.textContent.trim()) {
+          bigThingEl.textContent = DEFAULT_OBJECTIVE;
+        }
+        saveObjective();
+      });
+
+      // 6. Command bar send behavior
+      let toastTimer = null;
+      function showToast(message) {
+        toastFeedbackEl.textContent = message;
+        toastFeedbackEl.classList.add("visible");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toastFeedbackEl.classList.remove("visible");
+        }, 3200);
+      }
+
+      function copyToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+        } else {
+          fallbackCopy(text);
+        }
+      }
+
+      function fallbackCopy(text) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+        } catch (e) {}
+        document.body.removeChild(ta);
+      }
+
+      commandFormEl.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const raw = commandInputEl.value.trim();
+        if (!raw) {
+          commandInputEl.focus();
+          return;
+        }
+
+        if (/^email/i.test(raw)) {
+          const mailtoUrl = `mailto:?body=${encodeURIComponent(raw)}`;
+          window.location.href = mailtoUrl;
+        } else {
+          copyToClipboard(raw);
+          showToast("Copied. Paste in Gemini");
+          window.open("https://gemini.google.com", "_blank", "noopener,noreferrer");
+        }
+      });
+
+      // Initialize
+      loadObjective();
+      updateFlightDeck();
+      setInterval(updateFlightDeck, 1000);
+    })();
+  </script>
+</body>
+</html>
